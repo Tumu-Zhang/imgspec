@@ -15,6 +15,8 @@ Batch-convert PPT/PPTX, PDF, SVG and raster images — GUI + CLI, Windows.
 **不做任何 AI 重绘或图像生成**，结果与 Photoshop 的「图像大小 + 另存为」等价，
 只是可以批量、可复现、可脚本化。
 
+**👉 [下载 Windows 绿色版（免安装，解压双击即用）](https://github.com/Tumu-Zhang/imgspec/releases/latest)👈**
+
 | 浅色主题 | 深色主题 |
 |---|---|
 | ![浅色主题主界面](docs/screenshot/main-light.png) | ![深色主题主界面](docs/screenshot/main-dark.png) |
@@ -23,15 +25,18 @@ Batch-convert PPT/PPTX, PDF, SVG and raster images — GUI + CLI, Windows.
 
 ## 快速开始
 
-### 方式一：直接双击（推荐，不需要装 Python）
+### 方式一：下载绿色版（推荐，不需要装 Python）
 
-打开这个文件夹，双击 **`图片转换器.exe`** 即可 —— 它就在文件夹第一层，不用再往里点。
+到 [**Releases**](https://github.com/Tumu-Zhang/imgspec/releases/latest) 下载
+`imgspec-v*-win64.zip`，解压后双击 **`图片转换器.exe`** 即可 —— 不用装 Python，
+不用编译，解压就能用。
 
-这是一个绿色软件，可以整个文件夹拷到任何 Windows 电脑上用，
+这是一个绿色软件，整个文件夹可以拷到任何 Windows 电脑上用，
 包括没有装 Python 的电脑 —— 拷给同组同事也能直接跑。
 
 > 要一起带走的是 `图片转换器.exe` 和同级的 `_internal\` 文件夹，两者缺一不可
 > （后者是运行库）。想放桌面的话，右键 exe → 发送到 → 桌面快捷方式即可。
+> 首次运行若被 SmartScreen 拦截：点「更多信息 → 仍要运行」（程序未做代码签名）。
 
 ### 方式二：从源码运行（需要 Python 3.10+）
 
@@ -362,13 +367,12 @@ python -m pytest tests/ -q
 
 [MIT](LICENSE) © 2026 Tumu-Zhang
 
-<!-- DONATE-BEGIN
 ## 请作者喝杯咖啡
 
 如果这个工具帮你省下了改图的时间，欢迎请作者喝杯咖啡 ☕
+打赏全凭自愿、金额不限 —— 给仓库点个 **Star** 就是最大的支持！
 
 | 微信 | 支付宝 |
 |---|---|
-| ![](docs/donate/wechat.png) | ![](docs/donate/alipay.png) |
-DONATE-END -->
+| ![微信收款码](docs/donate/wechat.png) | ![支付宝收款码](docs/donate/alipay.jpg) |
 
