@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# 工具的默认输出目录
+converted/
+
+# 打包产物（体积大，按需用 tools/build.py 重新生成）
+build/
+dist/
+# 打包后 exe 与运行库会被提到项目根，方便双击
+/_internal/
+/图片转换器.exe
+# PyInstaller 每次打包都会重新生成，真正的打包配置在 tools/build.py 里
+*.spec
+
+# 编辑器 / 工具自身的工作目录
+.reasonix/
+.workbuddy/
+.claude/
+.vscode/
+.idea/
+
+# 内部评估文档，不随仓库发布
+Web化可行性评估.md

@@ -1,0 +1,18 @@
+# 图片转换器 —— 运行依赖
+#
+# 安装： pip install -r requirements.txt
+#
+# 说明：
+#   PyMuPDF  用于把 PDF / PPT 导出的 PDF 按目标 DPI 矢量重渲染（无外部二进制依赖）
+#   Pillow   用于尺寸重采样、DPI 元数据写入、TIFF LZW / PNG / JPEG / PDF 编码
+#   numpy    16 位灰度插值路径（encode / render 顶层导入，必需）
+#   PySide6  桌面界面（拖拽、参数面板、队列、进度）
+#   pywin32  仅 Windows：调用本机 PowerPoint 把 PPT/PPTX 导出为 PDF（矢量保真）
+#   pytest   开发期测试
+
+Pillow>=10.0
+PyMuPDF>=1.24
+numpy>=1.24
+PySide6>=6.5
+pywin32>=306; sys_platform == "win32"
+pytest>=8.0
