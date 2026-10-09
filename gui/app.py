@@ -56,6 +56,11 @@ def main(argv: list[str] | None = None) -> int:
     if "--smoke" in args:
         QTimer.singleShot(800, window.close)
 
+    # 语言切换：就地重译（不重建窗口，因此没有闪烁；队列与参数状态天然保留）。
+    # MainWindow 内部在未注入时也会自行调用 retranslate_ui，这里显式注入
+    # 是为了让切换入口的所有权一目了然。
+    window.on_language_change = window.retranslate_ui
+
     return app.exec()
 
 

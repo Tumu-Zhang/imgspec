@@ -23,10 +23,20 @@ class ConversionWorker(QObject):
     finished = Signal(object)          # ConversionReport
     failed = Signal(str)               # 未预期异常的可读描述
 
-    def __init__(self, files: list[Path], spec: OutputSpec) -> None:
+    def __init__(
+        self,
+        files: list[Path],
+        spec: OutputSpec,
+        page_overrides: dict[str, str | None] | None = None,
+        spec_overrides: dict[str, OutputSpec] | None = None,
+    ) -> None:
         super().__init__()
         self._files = list(files)
         self._spec = spec
+        # 每个文件自己的页码范围（仅 PDF/PPT 会用到），键为 str(源文件路径)
+        self._page_overrides = page_overrides
+        # 每个文件自己的尺寸参数（行级），键为 str(源文件路径)
+        self._spec_overrides = spec_overrides
         self._cancel = threading.Event()
 
     def cancel(self) -> None:
@@ -43,7 +53,9 @@ class ConversionWorker(QObject):
                 ),
                 should_cancel=self._cancel.is_set,
             )
-            report: ConversionReport = converter.run(self._files)
+            report: ConversionReport = converter.run(
+                self._files, self._page_overrides, self._spec_overrides
+            )
         except Exception as exc:  # noqa: BLE001 - 兜住一切，避免线程静默死亡
             self.failed.emit(f"{type(exc).__name__}: {exc}")
             return

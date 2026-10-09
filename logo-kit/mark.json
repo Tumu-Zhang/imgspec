@@ -1,0 +1,24 @@
+{
+  "brand": {
+    "name_zh": "图片转换器",
+    "name_en": "imgspec",
+    "tagline": "figure specs for journals"
+  },
+  "palette": {
+    "primary": "#2563eb",
+    "structural": "#1e40af",
+    "accent": "#22d3ee",
+    "panel": "#F3F0E8"
+  },
+  "canvas": 100,
+  "min_size_px": 24,
+  "motif": [
+    {"type": "rect", "x": 22, "y": 25, "w": 30, "h": 24, "r": 2, "fill": "primary"},
+    {"type": "polygon", "points": [[29, 49], [37, 37], [45, 49]], "fill": "panel"},
+    {"type": "rect", "x": 42, "y": 47, "w": 40, "h": 32, "fill": "none", "stroke": "structural", "width": 4},
+    {"type": "line", "x1": 56, "y1": 53, "x2": 72, "y2": 69, "stroke": "accent", "width": 4.5, "cap": "round"},
+    {"type": "polygon", "points": [[72, 60], [72, 69], [63, 69]], "fill": "accent"},
+    {"type": "polygon", "points": [[56, 53], [65, 53], [56, 62]], "fill": "accent"}
+  ],
+  "notes": "Derived from the approved B5/B6 mark (research figure normalizer 'imgspec'). Spatial facts: two offset frames on a 45-degree axis (input image block -> output spec outline), a diagonal resize double-arrow bridging their corners, dimension tick lines as fine structural cues, and one negative-space mountain as the minimum picture-content cue. Palette extracted from the reference: royal blue field (#1e40af), interface accent blue (#2563eb), cyan action accent (#22d3ee)."
+}

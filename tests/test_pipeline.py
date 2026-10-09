@@ -152,6 +152,24 @@ class TestPdfConversion:
         assert report.ok_count == 1
         assert report.results[0].out_path.name == "doc_p03.tif"
 
+    def test_page_override_is_per_file(self, tmp_path, workdir):
+        """page_overrides 让同一批文件各自带页码（GUI 输入区逐文件设置）。"""
+        doc_a = make_pdf(tmp_path / "a.pdf", pages=5)
+        doc_b = make_pdf(tmp_path / "b.pdf", pages=5)
+        report = convert(
+            [doc_a, doc_b],
+            base_spec(workdir),
+            page_overrides={str(doc_a): "1,3", str(doc_b): None},
+        )
+        assert report.ok_count == 7  # a 取 2 页 + b 全部 5 页
+        names = sorted(r.out_path.name for r in report.results)
+        assert names == [
+            "a_p01.tif", "a_p03.tif",
+            "b_p01.tif", "b_p02.tif", "b_p03.tif", "b_p04.tif", "b_p05.tif",
+        ]
+        # 覆盖只影响指定文件，spec 本身不被污染
+        assert convert([doc_a], base_spec(workdir, page_range="2")).ok_count == 1
+
     def test_vector_page_renders_at_target_size(self, tmp_path, workdir):
         src = make_pdf(tmp_path / "doc.pdf", pages=1, size_in=(8.5, 11.0))
         spec = base_spec(workdir, phys_unit=Unit.INCH, phys_width=4.0, dpi=300)

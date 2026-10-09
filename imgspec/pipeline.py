@@ -7,8 +7,8 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from imgspec import encode, ingest, office, render
@@ -146,7 +146,22 @@ class Converter:
         self._ppt: office.PowerPointSession | None = None
 
     # -- 公共入口 -------------------------------------------------------
-    def run(self, paths: Iterable[Path | str]) -> ConversionReport:
+    def run(
+        self,
+        paths: Iterable[Path | str],
+        page_overrides: Mapping[str, str | None] | None = None,
+        spec_overrides: Mapping[str, OutputSpec] | None = None,
+    ) -> ConversionReport:
+        """批量转换。
+
+        page_overrides: 以 ``str(源文件路径)`` 为键的页码范围覆盖
+        （如 ``"1,3-5"``，None 表示全部页）。用于让界面里每个 PDF/PPT
+        文件带自己的页码设置；未命中的文件用 spec.page_range。
+
+        spec_overrides: 以 ``str(源文件路径)`` 为键的整份规格覆盖。
+        用于让界面里每个文件带自己的尺寸参数（同批文件可各自设置
+        不同尺寸）；未命中的文件用构造时的 spec。
+        """
         sources = [Path(p) for p in paths]
         report = ConversionReport()
         total = len(sources)
@@ -156,7 +171,17 @@ class Converter:
                 if self.should_cancel():
                     break
                 self._emit(index, total, source.name)
-                report.results.extend(self.convert_one(source))
+                key = str(source)
+                override = page_overrides.get(key) if page_overrides else None
+                per_file_spec = spec_overrides.get(key) if spec_overrides else None
+                saved_spec = self.spec
+                if override is not None or per_file_spec is not None:
+                    base = per_file_spec if per_file_spec is not None else self.spec
+                    self.spec = replace(base, page_range=override or None)
+                try:
+                    report.results.extend(self.convert_one(source))
+                finally:
+                    self.spec = saved_spec
         finally:
             self._close_ppt()
 
@@ -325,9 +350,12 @@ def convert(
     *,
     progress: ProgressCallback | None = None,
     should_cancel: CancelCheck | None = None,
+    page_overrides: Mapping[str, str | None] | None = None,
+    spec_overrides: Mapping[str, OutputSpec] | None = None,
 ) -> ConversionReport:
     """一次性转换的便捷入口。"""
-    return Converter(spec, progress=progress, should_cancel=should_cancel).run(paths)
+    converter = Converter(spec, progress=progress, should_cancel=should_cancel)
+    return converter.run(paths, page_overrides, spec_overrides)
 
 
 __all__ = [
