@@ -346,7 +346,7 @@ python -m imgspec slides.pptx --px-width 2550 --dpi 300 --format png --pages 2
   tests/          pytest 测试
 宣传部/          宣传素材：界面截图、打赏收款码、Logo 与品牌规范
 反馈部/          用户反馈的收集与处理流程
-组织部/          管线规则：部门职责、工作流、版本与发布规范
+组织部/          管线规则：部门职责、工作流、版本与发布规范（PIPELINE.md）
 ```
 
 ## 重新打包
@@ -412,6 +412,14 @@ python -m pytest tests/ -q
 - PNG 的 DPI 存在 pHYs 块（单位「像素/米」），300 dpi 只能表示为 299.9994 ——
   这是 PNG 格式的固有精度，Photoshop 导出的 PNG 也一样；TIFF 与 JPEG 是精确的。
 - `--limit` 与体积搜索会多次编码同一张图，超大图（上亿像素）时较慢。
+
+---
+
+## 问题反馈
+
+遇到 bug 或有功能建议，欢迎到 [Issues](https://github.com/Tumu-Zhang/imgspec/issues) 提交 ——
+模板会引导你填版本号与复现步骤，附上「转换日志」卡片里的内容能更快定位。
+反馈的处理流程见 [反馈部/README.md](反馈部/README.md)。
 
 ---
 

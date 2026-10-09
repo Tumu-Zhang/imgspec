@@ -1,0 +1,57 @@
+name: Bug 报告
+description: 转换失败、结果不对、界面异常等问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量填全下面的信息 —— **附上转换日志或截图**能让问题更快定位。
+  - type: input
+    id: version
+    attributes:
+      label: 软件版本
+      description: Release 页可查，例如 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      description: 例如 Windows 11 24H2
+    validations:
+      required: true
+  - type: dropdown
+    id: source-type
+    attributes:
+      label: 出问题的源文件类型
+      options:
+        - PPT / PPTX 幻灯片
+        - PDF
+        - 图片（PNG/JPG/TIFF 等）
+        - SVG 矢量图
+        - 其他 / 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 怎么操作会出现问题？
+      placeholder: |
+        1. 拖入 xxx.pptx
+        2. 宽度填 8.5cm，点开始转换
+        3. 报错 / 输出尺寸不对
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望与实际
+      description: 你期望的结果 vs 实际发生的事
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志与截图
+      description: 主界面左栏「转换日志」卡片的内容（可全选复制）或界面截图
