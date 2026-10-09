@@ -11,6 +11,12 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.13"]
+    env:
+      # runner 控制台是 cp1252：pip/pytest 的输出只要出现中文
+      # （如「生产部」路径、中文报错文案）就会 UnicodeEncodeError ——
+      # 强制 Python 走 UTF-8 模式
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,5 +29,3 @@ jobs:
       # 真回归两次都会失败，不会掩盖。
       - name: 运行测试
         run: python -m pytest 生产部/tests -q || python -m pytest 生产部/tests -q
-        env:
-          QT_QPA_PLATFORM: offscreen
