@@ -7,12 +7,16 @@ venv/
 # 工具的默认输出目录
 converted/
 
-# 打包产物（体积大，按需用 tools/build.py 重新生成）
+# 打包产物（体积大，按需用 生产部/tools/build.py 重新生成）
 build/
 dist/
-# 打包后 exe 与运行库会被提到项目根，方便双击
+# 打包后 exe 与运行库会被提到 生产部/（软件所在目录），方便双击
 /_internal/
 /图片转换器.exe
+/生产部/_internal/
+/生产部/图片转换器.exe
+# 随打包复制到 生产部/ 的使用说明副本（仓库正式 README 在根目录）
+/生产部/README.md
 # PyInstaller 每次打包都会重新生成，真正的打包配置在 tools/build.py 里
 *.spec
 

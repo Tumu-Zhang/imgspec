@@ -3,8 +3,8 @@
 README 底部的「请作者喝杯咖啡」区块当前展示：
 
 ```
-docs/donate/wechat.png   微信收款码
-docs/donate/alipay.jpg   支付宝收款码
+宣传部/donate/wechat.png   微信收款码
+宣传部/donate/alipay.jpg   支付宝收款码
 ```
 
 更换收款码时，直接覆盖这两个文件并保持文件名不变即可（无需改 README）。

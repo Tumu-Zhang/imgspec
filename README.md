@@ -19,7 +19,7 @@ Batch-convert PPT/PPTX, PDF, SVG and raster images — GUI + CLI, Windows.
 
 | 浅色主题 | 深色主题 |
 |---|---|
-| ![浅色主题主界面](docs/screenshot/main-light.png) | ![深色主题主界面](docs/screenshot/main-dark.png) |
+| ![浅色主题主界面](宣传部/screenshot/main-light.png) | ![深色主题主界面](宣传部/screenshot/main-dark.png) |
 
 ---
 
@@ -40,7 +40,10 @@ Batch-convert PPT/PPTX, PDF, SVG and raster images — GUI + CLI, Windows.
 
 ### 方式二：从源码运行（需要 Python 3.10+）
 
+源码在 `生产部/` 目录，先进去再装依赖：
+
 ```bash
+cd 生产部
 pip install -r requirements.txt
 
 # 图形界面
@@ -50,14 +53,14 @@ python -m gui
 python -m imgspec figure.pdf --width 8.5 --unit cm --dpi 300 --format tiff
 ```
 
-Windows 上也可以双击 `run_gui.bat`（会自动检查并安装依赖）。
+Windows 上也可以双击 `生产部\run_gui.bat`（会自动检查并安装依赖）。
 
 ### 确认它能用：自检
 
 打包版和源码版都支持一次真实的自检 —— 它会生成测试图、按规划转换、读回校验像素与 DPI：
 
 ```bash
-图片转换器.exe --selftest      # 或 python -m imgspec.selftest
+图片转换器.exe --selftest      # 源码方式：进 生产部/ 后 python -m imgspec.selftest
 ```
 
 还可以把你手上任何一个文件交给它试跑一遍，确认这类文件能不能处理
@@ -237,6 +240,8 @@ PDF/PPT 里的图片是位图，不是矢量。导出的 PDF 页面在 600 dpi �
 
 ## 命令行
 
+> 源码方式运行：先 `cd 生产部`。
+
 ```
 python -m imgspec <文件或目录>... [选项]
 
@@ -311,31 +316,37 @@ python -m imgspec slides.pptx --px-width 2550 --dpi 300 --format png --pages 2
 
 ## 项目结构
 
+仓库按「四部门管线」组织：
+
 ```
-main.py         exe 与双击运行的入口（含 --selftest）
-imgspec/
-  model.py      输出规格与几何解析（尺寸、等比、单位换算）
-  ingest.py     输入探测（类别、页数、源分辨率），不启动 Office
-  office.py     PowerPoint 自动化（唯一依赖 Office 的模块）
-  render.py     矢量页按目标 DPI 光栅化 + 栅格图重采样
-  encode.py     编码与体积控制（TIFF LZW / PNG / JPEG / PDF）
-  pipeline.py   批量编排、命名、冲突处理
-  selftest.py   自检：跑一次真实转换并校验结果
-  cli.py        命令行入口
-gui/
-  theme.py       调色板、字体、样式表、自绘应用图标
-  i18n.py        中英双语文案表
-  widgets.py     可复用小组件（完成通知浮层、全选表头）
-  main_window.py 拖拽、文件队列（勾选/页码）、参数栏、后台转换
-  worker.py      后台转换线程
-tools/
-  make_icon.py        生成 icon.ico
-  build.py            一键打包（含依赖排除与收尾）
-  make_installer.py   制作安装包（调用 Inno Setup）
-installer/
-  图片转换器.iss      安装脚本：名称、版本、目录、快捷方式、卸载入口
-  README.md           文件清单、运行时处理与验证步骤
-tests/          pytest 测试
+生产部/          软件本体：代码、测试、打包与发布工具
+  main.py         exe 与双击运行的入口（含 --selftest）
+  gui/
+    theme.py       调色板、字体、样式表、自绘应用图标
+    i18n.py        中英双语文案表
+    widgets.py     可复用小组件（完成通知浮层、全选表头）
+    main_window.py 拖拽、文件队列（勾选/页码）、参数栏、后台转换
+    worker.py      后台转换线程
+  imgspec/
+    model.py      输出规格与几何解析（尺寸、等比、单位换算）
+    ingest.py     输入探测（类别、页数、源分辨率），不启动 Office
+    office.py     PowerPoint 自动化（唯一依赖 Office 的模块）
+    render.py     矢量页按目标 DPI 光栅化 + 栅格图重采样
+    encode.py     编码与体积控制（TIFF LZW / PNG / JPEG / PDF）
+    pipeline.py   批量编排、命名、冲突处理
+    selftest.py   自检：跑一次真实转换并校验结果
+    cli.py        命令行入口
+  tools/
+    make_icon.py        生成 icon.ico
+    build.py            一键打包（含依赖排除与收尾）
+    make_installer.py   制作安装包（调用 Inno Setup）
+  installer/
+    图片转换器.iss      安装脚本：名称、版本、目录、快捷方式、卸载入口
+    README.md           文件清单、运行时处理与验证步骤
+  tests/          pytest 测试
+宣传部/          宣传素材：界面截图、打赏收款码、Logo 与品牌规范
+反馈部/          用户反馈的收集与处理流程
+组织部/          管线规则：部门职责、工作流、版本与发布规范
 ```
 
 ## 重新打包
@@ -343,11 +354,12 @@ tests/          pytest 测试
 需要改代码再打包时，一条命令即可（参数都固化在脚本里，不用记那串排除列表）：
 
 ```bash
-python tools/build.py
+cd 生产部
+python tools\build.py
 ```
 
-它会完成：生成图标 → 调用 PyInstaller → **把 exe 和运行库从 `dist\` 提到项目根**
-（这样打开文件夹就能看到 exe）→ 打印体积与入口路径。
+它会完成：生成图标 → 调用 PyInstaller → **把 exe 和运行库从 `dist\` 提到 `生产部\`**
+（软件所在目录，打开就能看到 exe）→ 打印体积与入口路径。
 
 > 打包时会排除环境里装着的 `torch` / `pyarrow` / `scipy` / `pandas` 等无关的大包 ——
 > 它们不是本工具的依赖，但 PyInstaller 会顺着可选导入把它们整个拖进来（光是 torch
@@ -360,10 +372,11 @@ python tools/build.py
 **安装程序**：
 
 ```bash
-python tools/make_installer.py
+cd 生产部
+python tools\make_installer.py
 ```
 
-产物在 `dist\installer\`，两种都出：
+产物在 `生产部\dist\installer\`，两种都出：
 
 - `图片转换器-<版本>-当前用户-setup.exe` —— 免管理员，双击即装（发给同事用这个）
 - `图片转换器-<版本>-所有用户-setup.exe` —— 需管理员，适合机房统一部署
@@ -374,11 +387,12 @@ python tools/make_installer.py
 > **未签名的安装包在别人机器上会被 SmartScreen 拦截**，首次运行需点
 > 「更多信息 → 仍要运行」。发的时候记得一并说明。
 
-文件清单、运行时依赖处理与验证步骤见 `installer/README.md`。
+文件清单、运行时依赖处理与验证步骤见 `生产部/installer/README.md`。
 
 ## 测试
 
 ```bash
+cd 生产部
 python -m pytest tests/ -q
 ```
 
@@ -412,5 +426,5 @@ python -m pytest tests/ -q
 
 | 微信 | 支付宝 |
 |---|---|
-| ![微信收款码](docs/donate/wechat.png) | ![支付宝收款码](docs/donate/alipay.jpg) |
+| ![微信收款码](宣传部/donate/wechat.png) | ![支付宝收款码](宣传部/donate/alipay.jpg) |
 

@@ -17,11 +17,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: 安装依赖
-        run: pip install -r requirements.txt
+        run: pip install -r 生产部/requirements.txt
       # Qt 在无头 CI 上有偶发的 "Fatal Python error: Aborted"（进程级崩溃，
       # 与代码无关：本机与 3.13 均稳定通过）。失败自动完整重试一次；
       # 真回归两次都会失败，不会掩盖。
       - name: 运行测试
-        run: python -m pytest tests/ -q || python -m pytest tests/ -q
+        run: python -m pytest 生产部/tests -q || python -m pytest 生产部/tests -q
         env:
           QT_QPA_PLATFORM: offscreen

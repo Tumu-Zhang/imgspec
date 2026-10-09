@@ -15,6 +15,10 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    # 保证「python 生产部/tools/build.py」无论从哪个目录启动，
+    # 都能 import tools.make_icon（icon 缺失时的兜底生成）
+    sys.path.insert(0, str(ROOT))
 APP_NAME = "图片转换器"
 
 # 这些包本身不是本工具的依赖，但环境里装了它们，PyInstaller 会顺着某些
@@ -45,14 +49,24 @@ def main() -> int:
         if make_icon() != 0:
             return 1
 
+    # README 跟仓库走：优先项目根（生产部/），没有就找仓库根
+    readme = ROOT / "README.md"
+    if not readme.exists():
+        readme = ROOT.parent / "README.md"
+
     args = [
         "--noconfirm",
         "--windowed",
         "--name", APP_NAME,
         "--icon", str(icon),
+        # 产物路径显式锚定到 ROOT（生产部/），与启动时的工作目录无关 ——
+        # PyInstaller 默认用「当前目录」，从仓库根启动会把 dist/build 撒在根目录
+        "--distpath", str(ROOT / "dist"),
+        "--workpath", str(ROOT / "build"),
+        "--specpath", str(ROOT),
         # 使用说明随包带上；PyInstaller 6 会把它放进 _internal，
         # 下面再复制一份到 dist 根目录，让用户一眼能看到
-        "--add-data", f"{ROOT / 'README.md'}{';.'}",
+        "--add-data", f"{readme}{';.'}",
     ]
     for name in HIDDEN_IMPORTS:
         args += ["--hidden-import", name]
@@ -71,7 +85,6 @@ def main() -> int:
         return 1
 
     # 把说明复制到产物根目录 —— 用户打开文件夹第一眼就能看到
-    readme = ROOT / "README.md"
     if readme.exists():
         shutil.copy2(readme, dist_dir / "README.md")
 
