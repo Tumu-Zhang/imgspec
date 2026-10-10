@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 
 import pytest
 
@@ -1026,3 +1027,130 @@ class TestCloseDuringConversion:
                 break
             time.sleep(0.02)
         qapp.processEvents()
+
+
+class TestMaintenanceFeatures:
+    """维护功能：日志导出、反馈入口、检查更新（测试不触网）。"""
+
+    def test_log_export_writes_environment_and_records(self, window, tmp_path, monkeypatch):
+        from PySide6.QtWidgets import QFileDialog
+
+        target = tmp_path / "session-log.txt"
+        monkeypatch.setattr(
+            QFileDialog,
+            "getSaveFileName",
+            staticmethod(lambda *args, **kwargs: (str(target), "*.txt")),
+        )
+
+        window._append_log_raw("测试日志行", "info")
+        window.export_log()
+
+        text = target.read_text(encoding="utf-8")
+        assert "图片转换器 · 转换日志" in text
+        assert "版本：" in text  # 头部环境信息，供 Issue 附言
+        assert "[INFO] 测试日志行" in text
+
+    def test_log_export_cancelled_writes_nothing(self, window, tmp_path, monkeypatch):
+        from PySide6.QtWidgets import QFileDialog
+
+        monkeypatch.setattr(
+            QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: ("", ""))
+        )
+        window.export_log()  # 取消不应抛异常
+        assert not list(tmp_path.glob("*.txt"))
+
+    def test_maintenance_buttons_present(self, window):
+        assert window.export_log_btn.isEnabled()
+        assert window.feedback_btn.isEnabled()
+        assert window.update_btn.isEnabled()
+        assert window.auto_check_action.isCheckable()
+        assert window.export_log_btn.toolTip()
+
+    def test_feedback_opens_issues_page(self, window, monkeypatch):
+        opened: list[str] = []
+        # 走窗口自己的 _open_url（QDesktopServices.openUrl 是 C++ 静态方法，
+        # patch 不掉，漏掉就会真的拉起浏览器）
+        monkeypatch.setattr(window, "_open_url", lambda url: opened.append(url))
+        window.open_feedback()
+        assert opened and "issues/new/choose" in opened[0]
+
+    def test_toast_actions_reuse_open_url(self, window, monkeypatch):
+        """导出日志/发现新版时，Toast 上的动作也走 _open_url（不真开浏览器）。"""
+        from PySide6.QtWidgets import QFileDialog
+
+        opened: list[str] = []
+        monkeypatch.setattr(window, "_open_url", lambda url: opened.append(url))
+
+        target = Path(window._settings().fileName()).parent / "exported.txt"
+        monkeypatch.setattr(
+            QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(target), "*.txt"))
+        )
+        window.export_log()
+        assert not window.toast.isHidden()  # 窗口未 show，isVisible() 恒为 False
+        window.toast._invoke_action()  # 触发「打开所在文件夹」
+        assert opened and opened[0].startswith("file:")
+
+        window._on_update_checked({"tag": "v9.9.9", "url": "https://example.com/rel"}, manual=True)
+        window.toast._invoke_action()  # 触发「打开下载页」
+        assert opened[-1] == "https://example.com/rel"
+
+    def test_retranslate_updates_maintenance_labels(self, window):
+        from gui import i18n
+
+        i18n.set_lang("en")
+        try:
+            window.retranslate_ui()
+            assert window.export_log_btn.text() == i18n.t("btn_export_log")
+            assert window.feedback_btn.text() == i18n.t("btn_feedback")
+            assert window.update_btn.text() == i18n.t("btn_check_update")
+            assert window.auto_check_action.text() == i18n.t("update_auto_check")
+        finally:
+            i18n.set_lang("zh")
+            window.retranslate_ui()
+
+    def test_auto_check_default_on_and_persists(self, qapp, window):
+        import gui.main_window as main_window_module
+
+        assert window.auto_check_action.isChecked() is True  # 默认开启
+
+        window.auto_check_action.setChecked(False)  # 立即写回设置
+        assert window._settings().value("update_check_on_start", True, type=bool) is False
+
+        win2 = main_window_module.MainWindow()
+        try:
+            assert win2.auto_check_action.isChecked() is False
+        finally:
+            win2.close()
+
+    def test_auto_check_skipped_when_disabled(self, window, monkeypatch):
+        called: list[bool] = []
+        monkeypatch.setattr(window, "check_updates", lambda manual=False: called.append(manual))
+        window.auto_check_action.setChecked(False)
+        window.check_updates_on_start()
+        assert called == []
+
+        window.auto_check_action.setChecked(True)
+        window.check_updates_on_start()
+        assert called == [False]  # 静默（manual=False）
+
+    def test_update_result_newer_logs_and_toasts(self, window):
+        window._on_update_checked(
+            {"tag": "v9.9.9", "url": "https://example.com/rel"}, manual=True
+        )
+        assert any("9.9.9" in message for _s, _l, message in window._log_records)
+        assert "9.9.9" in window.toast._title.text()
+
+    def test_update_result_failure_is_silent_on_auto_check(self, window):
+        before = len(window._log_records)
+        window._on_update_checked(None, manual=False)  # 自动检查失败不打扰
+        assert len(window._log_records) == before
+        assert window.toast.isHidden()
+
+    def test_update_result_failure_reports_on_manual_check(self, window):
+        from gui import i18n
+
+        before = len(window._log_records)
+        window._on_update_checked(None, manual=True)
+        assert len(window._log_records) == before + 1
+        assert window.toast._title.text() == i18n.t("update_failed_title")
+        assert not window.toast.isHidden()

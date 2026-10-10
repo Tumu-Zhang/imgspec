@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import (
+    QDateTime,
     QEvent,
     QItemSelectionModel,
     QObject,
@@ -72,11 +73,19 @@ from PySide6.QtWidgets import (
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from gui import i18n, theme
+from gui.maintenance import (
+    ISSUES_PAGE,
+    UpdateChecker,
+    app_version,
+    build_log_text,
+    is_newer,
+)
 from gui.widgets import (
     CheckBoxHeader,
     EdgeFade,
@@ -188,6 +197,9 @@ class MainWindow(QMainWindow):
         self._log_records: list[tuple[str, str, str]] = []
         # 表单字段标签（form, 标签控件, i18n键）：语言切换统一刷新
         self._form_rows: list[tuple[QFormLayout, QLabel, str]] = []
+        # 更新检查线程（一次一个；启动时自动检查可在顶栏菜单里关掉）
+        self._update_thread: UpdateChecker | None = None
+        self._auto_check: bool = True
 
         self._load_language()
         self._build_ui()
@@ -255,6 +267,38 @@ class MainWindow(QMainWindow):
         title_col.addWidget(self.subtitle_label)
         layout.addLayout(title_col)
         layout.addStretch(1)
+
+        # 维护功能：日志导出 / 问题反馈 / 检查更新（自动检查开关在该按钮菜单里）
+        self.export_log_btn = QPushButton(i18n.t("btn_export_log"))
+        self.export_log_btn.setObjectName("ghostBtn")
+        self.export_log_btn.setToolTip(i18n.t("export_log_tooltip"))
+        self.export_log_btn.clicked.connect(self.export_log)
+
+        self.feedback_btn = QPushButton(i18n.t("btn_feedback"))
+        self.feedback_btn.setObjectName("ghostBtn")
+        self.feedback_btn.setToolTip(i18n.t("feedback_tooltip"))
+        self.feedback_btn.clicked.connect(self.open_feedback)
+
+        # 主按钮 = 立即检查；右侧箭头弹出菜单（含「启动时自动检查更新」开关）
+        self.update_btn = QToolButton()
+        self.update_btn.setObjectName("ghostBtn")
+        self.update_btn.setText(i18n.t("btn_check_update"))
+        self.update_btn.setToolTip(i18n.t("update_btn_tooltip"))
+        self.update_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.update_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.update_btn.clicked.connect(lambda: self.check_updates(manual=True))
+
+        self.update_menu = QMenu(self.update_btn)
+        self.update_now_action = self.update_menu.addAction(i18n.t("btn_check_update"))
+        self.update_now_action.triggered.connect(lambda: self.check_updates(manual=True))
+        self.auto_check_action = self.update_menu.addAction(i18n.t("update_auto_check"))
+        self.auto_check_action.setCheckable(True)
+        self.auto_check_action.toggled.connect(self._on_auto_check_toggled)
+        self.update_btn.setMenu(self.update_menu)
+
+        layout.addWidget(self.export_log_btn)
+        layout.addWidget(self.feedback_btn)
+        layout.addWidget(self.update_btn)
 
         # 语言 / 主题：胶囊开关，点击即切换（高亮块滑动过去，确认感明确）
         self.lang_combo = PillToggle()
@@ -876,6 +920,16 @@ class MainWindow(QMainWindow):
         self._retranslate_combo(self.theme_combo, ("theme_light", "theme_dark"))
         self.lang_combo.setToolTip(i18n.t("lang_combo_tooltip"))
         self.theme_combo.setToolTip(i18n.t("theme_combo_tooltip"))
+
+        # 顶栏维护功能按钮
+        self.export_log_btn.setText(i18n.t("btn_export_log"))
+        self.export_log_btn.setToolTip(i18n.t("export_log_tooltip"))
+        self.feedback_btn.setText(i18n.t("btn_feedback"))
+        self.feedback_btn.setToolTip(i18n.t("feedback_tooltip"))
+        self.update_btn.setText(i18n.t("btn_check_update"))
+        self.update_btn.setToolTip(i18n.t("update_btn_tooltip"))
+        self.update_now_action.setText(i18n.t("btn_check_update"))
+        self.auto_check_action.setText(i18n.t("update_auto_check"))
 
         # 卡片标题与表格列名
         self.files_card_title.setText(i18n.t("card_files"))
@@ -2030,6 +2084,113 @@ class MainWindow(QMainWindow):
         )
 
     # ==================================================================
+    # 维护功能：日志导出 / 问题反馈 / 检查更新
+    # ==================================================================
+    def _open_url(self, url: str) -> None:
+        """用系统默认程序打开链接。
+
+        单独抽成一个方法（而不是到处直接调 QDesktopServices）：测试里可以
+        整体替换掉它 —— QDesktopServices.openUrl 是 C++ 静态方法，patch 不掉，
+        测试一旦漏掉就会真的拉起浏览器。
+        """
+        QDesktopServices.openUrl(QUrl(url))
+
+    def export_log(self) -> None:
+        """把本次会话的转换日志导出成 txt（头部含版本与系统信息）。"""
+        stamp = QDateTime.currentDateTime().toString("yyyyMMdd_HHmmss")
+        default_path = Path.home() / f"imgspec_log_{stamp}.txt"
+        path, _ = QFileDialog.getSaveFileName(
+            self, i18n.t("export_log_title"), str(default_path), "*.txt"
+        )
+        if not path:
+            return
+        text = build_log_text(
+            list(self._log_records),
+            generated_at=QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss"),
+        )
+        try:
+            Path(path).write_text(text, encoding="utf-8")
+        except OSError as exc:
+            self._append_log_raw(i18n.t("log_export_failed", err=exc), "error")
+            return
+        self._append_log_raw(i18n.t("log_exported", path=path), "ok")
+        folder_url = QUrl.fromLocalFile(str(Path(path).parent)).toString()
+        self.toast.show_message(
+            i18n.t("export_log_done"),
+            path,
+            level="ok",
+            action_text=i18n.t("open_containing_folder"),
+            on_action=lambda: self._open_url(folder_url),
+            auto_close_ms=6000,
+        )
+
+    def open_feedback(self) -> None:
+        """打开 GitHub 反馈页（Issue 模板会引导填写版本与复现步骤）。"""
+        self._open_url(ISSUES_PAGE)
+        self._append_log("feedback_opened")
+
+    def check_updates(self, manual: bool = False) -> None:
+        """检查更新。
+
+        manual=False（启动时自动检查）完全静默：失败不打扰，只有发现新版才提示；
+        manual=True 时把过程与结果写进日志/浮层。
+        """
+        if self._update_thread is not None and self._update_thread.isRunning():
+            if manual:
+                self._append_log("update_checking")
+            return
+        if manual:
+            self._append_log("update_checking")
+        self._update_thread = UpdateChecker(self)
+        self._update_thread.checked.connect(
+            lambda release: self._on_update_checked(release, manual)
+        )
+        self._update_thread.start()
+
+    def _on_update_checked(self, release: object, manual: bool) -> None:
+        """更新检查回到界面线程。release 为 None 表示失败/无法访问。"""
+        if not isinstance(release, dict):
+            if manual:
+                self._append_log("update_check_failed", "warn")
+                self.toast.show_message(
+                    i18n.t("update_failed_title"),
+                    i18n.t("update_failed_body"),
+                    level="warn",
+                    auto_close_ms=0,
+                )
+            return
+
+        tag = str(release.get("tag") or "")
+        url = str(release.get("url") or "")
+        if is_newer(tag, app_version()):
+            self._append_log("update_found", "ok", ver=tag, cur=app_version())
+            self.toast.show_message(
+                i18n.t("update_found_title", ver=tag),
+                i18n.t("update_found_body", cur=app_version()),
+                level="ok",
+                action_text=i18n.t("update_open_page"),
+                on_action=lambda: self._open_url(url),
+                auto_close_ms=0,
+            )
+        elif manual:
+            self._append_log("update_is_latest", "ok", ver=app_version())
+            self.toast.show_message(
+                i18n.t("update_latest_title"),
+                i18n.t("update_latest_body", ver=app_version()),
+                level="ok",
+                auto_close_ms=5000,
+            )
+
+    def _on_auto_check_toggled(self, checked: bool) -> None:
+        self._auto_check = bool(checked)
+        self._settings().setValue("update_check_on_start", self._auto_check)
+
+    def check_updates_on_start(self) -> None:
+        """启动后的静默检查（由 app.py 定时触发；测试直接建窗不会触发）。"""
+        if self._auto_check:
+            self.check_updates(manual=False)
+
+    # ==================================================================
     # 辅助
     # ==================================================================
     def _choose_files(self) -> None:
@@ -2156,6 +2317,12 @@ class MainWindow(QMainWindow):
                 self.theme_combo.blockSignals(False)
             self._apply_theme(saved_theme)
 
+        # 启动时是否自动检查更新（默认开；顶栏「检查更新」菜单可关）
+        self._auto_check = s.value("update_check_on_start", True, type=bool)
+        self.auto_check_action.blockSignals(True)
+        self.auto_check_action.setChecked(self._auto_check)
+        self.auto_check_action.blockSignals(False)
+
         index = self.fmt_combo.findData(s.value("fmt", OutputFormat.TIFF.value))
         if index >= 0:
             self.fmt_combo.setCurrentIndex(index)
@@ -2237,6 +2404,7 @@ class MainWindow(QMainWindow):
         s.setValue("on_conflict", self.conflict_policy.value)
         s.setValue("max_mb", self.max_mb)
         s.setValue("lossy_fallback", self.lossy_fallback)
+        s.setValue("update_check_on_start", self._auto_check)
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt 命名
         if self._worker is not None:

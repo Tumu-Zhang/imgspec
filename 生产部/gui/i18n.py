@@ -113,6 +113,61 @@ _STRINGS: dict[str, dict[str, str]] = {
     "toast_close": {"zh": "关闭", "en": "Close"},
 
     # ------------------------------------------------------------------
+    # 维护功能：日志导出 / 问题反馈 / 检查更新
+    # ------------------------------------------------------------------
+    "btn_export_log": {"zh": "导出日志", "en": "Export log"},
+    "export_log_title": {"zh": "保存转换日志", "en": "Save log"},
+    "export_log_tooltip": {
+        "zh": "把本次会话的转换日志存成 txt（含版本与系统信息，便于反馈问题）",
+        "en": "Save this session's log as txt (includes version and system info)",
+    },
+    "export_log_done": {"zh": "日志已导出", "en": "Log exported"},
+    "log_exported": {"zh": "日志已导出：{path}", "en": "Log exported: {path}"},
+    "log_export_failed": {"zh": "日志导出失败：{err}", "en": "Failed to export log: {err}"},
+    "open_containing_folder": {"zh": "打开所在文件夹", "en": "Open Folder"},
+    "btn_feedback": {"zh": "反馈", "en": "Feedback"},
+    "feedback_tooltip": {
+        "zh": "到 GitHub 提交问题或建议（模板会引导你填写，可附上导出的日志）",
+        "en": "Report issues or ideas on GitHub (attach the exported log if useful)",
+    },
+    "feedback_opened": {
+        "zh": "已打开反馈页；建议先用「导出日志」导出日志，再附到 Issue 里",
+        "en": "Feedback page opened; export the log first if you want to attach it",
+    },
+    "btn_check_update": {"zh": "检查更新", "en": "Check updates"},
+    "update_btn_tooltip": {
+        "zh": "检查是否有新版本；右键箭头可关闭启动时自动检查",
+        "en": "Check for a newer release; the arrow menu can turn off startup checks",
+    },
+    "update_auto_check": {"zh": "启动时自动检查更新", "en": "Check at startup"},
+    "update_checking": {"zh": "正在检查更新…", "en": "Checking for updates..."},
+    "update_is_latest": {"zh": "已是最新版本（{ver}）", "en": "Already up to date ({ver})"},
+    "update_latest_title": {"zh": "已是最新版本", "en": "Up to date"},
+    "update_latest_body": {
+        "zh": "当前版本 {ver} 就是最新版。",
+        "en": "You are on the latest version, {ver}.",
+    },
+    "update_found": {
+        "zh": "发现新版本 {ver}（当前 {cur}）",
+        "en": "New release {ver} available (current {cur})",
+    },
+    "update_found_title": {"zh": "发现新版本 {ver}", "en": "New release {ver}"},
+    "update_found_body": {
+        "zh": "当前版本 {cur}。打开下载页获取新版压缩包。",
+        "en": "Current version {cur}. Open the download page to get it.",
+    },
+    "update_open_page": {"zh": "打开下载页", "en": "Open Download Page"},
+    "update_check_failed": {
+        "zh": "检查更新失败（网络不可用或无法访问 GitHub）",
+        "en": "Update check failed (offline or GitHub unreachable)",
+    },
+    "update_failed_title": {"zh": "检查更新失败", "en": "Update check failed"},
+    "update_failed_body": {
+        "zh": "未能连接 GitHub，稍后再试即可 —— 不影响正常使用。",
+        "en": "Could not reach GitHub. Try again later - normal use is unaffected.",
+    },
+
+    # ------------------------------------------------------------------
     # 右栏：输出格式
     # ------------------------------------------------------------------
     "group_format": {"zh": "输出格式", "en": "Output Format"},

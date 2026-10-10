@@ -518,6 +518,21 @@ QPushButton#ghostBtn:disabled {{
     color: {t.text_tertiary};
     background: transparent;
 }}
+/* 检查更新是 QToolButton（带下拉菜单），外观与 ghostBtn 对齐 */
+QToolButton#ghostBtn {{
+    background: transparent;
+    border: none;
+    border-radius: {RADIUS_CTRL}px;
+    padding: 5px 8px;
+    color: {t.text_secondary};
+}}
+QToolButton#ghostBtn:hover {{
+    background: {t.bg_hover};
+    color: {t.text_primary};
+}}
+QToolButton#ghostBtn:pressed {{
+    background: {t.bg_sunk};
+}}
 
 /* 描边强调按钮：空状态 CTA 等次级主动作 */
 QPushButton#accentOutline {{

@@ -52,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
     window = MainWindow()
     window.show()
 
+    # 启动后静默检查更新：连不上 GitHub 就当无事发生（见 gui/maintenance.py），
+    # 可在顶栏「检查更新」的下拉菜单里关掉；--smoke 会在 800ms 内关窗，不会触发
+    QTimer.singleShot(1200, window.check_updates_on_start)
+
     # --smoke：启动后短暂时间自动退出，用于验证程序能正常启动
     if "--smoke" in args:
         QTimer.singleShot(800, window.close)
