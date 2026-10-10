@@ -822,6 +822,15 @@ QHeaderView::section {{
     font-size: {FONT_SM}pt;
     font-weight: 600;
 }}
+/* 表头首末段补圆角：QTableWidget 的圆角不会裁剪子控件，实底表头段
+   会盖掉表格上缘两个圆角变直角 —— 半径取 RADIUS_CARD-1，正好贴着
+   表格 1px 描边内嵌曲线（表头顶边与表格内缘齐平）。 */
+QHeaderView::section:first {{
+    border-top-left-radius: {RADIUS_CARD - 1}px;
+}}
+QHeaderView::section:last {{
+    border-top-right-radius: {RADIUS_CARD - 1}px;
+}}
 QTableCornerButton::section {{
     background: {t.bg_tertiary};
     border: none;
