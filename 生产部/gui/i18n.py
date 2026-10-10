@@ -166,6 +166,25 @@ _STRINGS: dict[str, dict[str, str]] = {
         "zh": "未能连接 GitHub，稍后再试即可 —— 不影响正常使用。",
         "en": "Could not reach GitHub. Try again later - normal use is unaffected.",
     },
+    "log_privacy_note": {
+        "zh": "【提示】日志可能包含本机文件路径，分享前请自行确认。",
+        "en": "[Note] This log may contain local file paths - please review before sharing.",
+    },
+    "crash_detected_title": {"zh": "上次异常退出", "en": "Last session ended unexpectedly"},
+    "crash_detected_body": {
+        "zh": "上次的日志已自动保存在本机，你可以导出它发给维护者排查。",
+        "en": "The last session's log was saved locally; export it to help diagnose.",
+    },
+    "crash_detected_log": {
+        "zh": "检测到上次异常退出，日志已归档：{name}",
+        "en": "Previous session ended unexpectedly; log archived as {name}",
+    },
+    "crash_export_action": {"zh": "导出上次日志", "en": "Export Last Log"},
+    "crash_export_title": {"zh": "保存上次会话日志", "en": "Save Last Session Log"},
+    "crash_log_missing": {
+        "zh": "找不到上次会话的日志文件",
+        "en": "Last session log not found",
+    },
 
     # ------------------------------------------------------------------
     # 右栏：输出格式

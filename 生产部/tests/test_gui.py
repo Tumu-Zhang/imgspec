@@ -50,6 +50,12 @@ def window(qapp, tmp_path, monkeypatch):
         main_window_module.MainWindow, "_settings", isolated_settings
     )
 
+    # 会话日志同样指到临时目录：否则每跑一次测试都往用户真实 AppData 里写日志
+    log_dir = tmp_path / "logs"
+    monkeypatch.setattr(
+        main_window_module.MainWindow, "_session_log_dir", lambda _self: log_dir
+    )
+
     win = main_window_module.MainWindow()
     win.clear_all()
     yield win
@@ -1049,6 +1055,7 @@ class TestMaintenanceFeatures:
         assert "图片转换器 · 转换日志" in text
         assert "版本：" in text  # 头部环境信息，供 Issue 附言
         assert "[INFO] 测试日志行" in text
+        assert "分享前请自行确认" in text  # 隐私提示随文本一起导出
 
     def test_log_export_cancelled_writes_nothing(self, window, tmp_path, monkeypatch):
         from PySide6.QtWidgets import QFileDialog
@@ -1154,3 +1161,81 @@ class TestMaintenanceFeatures:
         assert len(window._log_records) == before + 1
         assert window.toast._title.text() == i18n.t("update_failed_title")
         assert not window.toast.isHidden()
+
+
+class TestSessionLogFeatures:
+    """会话日志落盘、崩溃检测与导出（本地留档，不涉及联网）。"""
+
+    def test_records_written_to_disk(self, window):
+        window._append_log_raw("落盘测试行", "warn")
+        path = window._session_log.path
+        assert path is not None and path.exists()
+        assert "[WARN] 落盘测试行" in path.read_text(encoding="utf-8")
+
+    def test_normal_close_writes_footer(self, qapp, window):
+        from gui.session_log import OK_FOOTER
+
+        window._append_log_raw("关闭前一行", "info")
+        window.close()
+        path = window._session_log.path
+        assert path is not None
+        assert path.read_text(encoding="utf-8").rstrip().endswith(OK_FOOTER)
+
+    def test_previous_crash_prompts_export(self, qapp, tmp_path, monkeypatch):
+        import gui.main_window as main_window_module
+
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        # 造一次「上次没正常退出」的会话（文件末尾没有正常退出标记）
+        (log_dir / "last-session.log").write_text(
+            "旧会话\n[10:00] [ERROR] 转换失败\n", encoding="utf-8"
+        )
+        monkeypatch.setattr(
+            main_window_module.MainWindow, "_session_log_dir", lambda _self: log_dir
+        )
+
+        win = main_window_module.MainWindow()
+        try:
+            assert win._session_log.previous_crash is not None
+            assert list(log_dir.glob("crash-*.log")), "上次的会话应被归档为 crash-*"
+            assert not win.toast.isHidden(), "应提示用户可导出上次日志"
+        finally:
+            win.close()
+
+    def test_no_crash_after_clean_exit(self, qapp, tmp_path, monkeypatch):
+        import gui.main_window as main_window_module
+        from gui.session_log import OK_FOOTER
+
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        (log_dir / "last-session.log").write_text("旧会话\n" + OK_FOOTER + "\n", encoding="utf-8")
+        monkeypatch.setattr(
+            main_window_module.MainWindow, "_session_log_dir", lambda _self: log_dir
+        )
+
+        win = main_window_module.MainWindow()
+        try:
+            assert win._session_log.previous_crash is None
+            assert win.toast.isHidden(), "干净退出不应提示"
+        finally:
+            win.close()
+
+    def test_export_crash_log_writes_file(self, window, tmp_path, monkeypatch):
+        from PySide6.QtWidgets import QFileDialog
+
+        crash = window._session_log.directory / "crash-20260101-120000.log"
+        crash.write_text("[10:00] [ERROR] 转换时炸了\n", encoding="utf-8")
+        window._session_log.previous_crash = crash
+
+        target = tmp_path / "crash-export.txt"
+        monkeypatch.setattr(
+            QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(target), "*.txt"))
+        )
+        window.export_crash_log()
+        assert "转换时炸了" in target.read_text(encoding="utf-8")
+
+    def test_export_crash_log_without_crash_logs_warning(self, window):
+        window._session_log.previous_crash = None
+        before = len(window._log_records)
+        window.export_crash_log()  # 不应抛异常
+        assert len(window._log_records) == before + 1

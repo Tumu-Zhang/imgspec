@@ -40,11 +40,14 @@ def environment_lines() -> list[str]:
     ]
 
 
-def build_log_text(records: list[tuple[str, str, str]], *, generated_at: str) -> str:
+def build_log_text(
+    records: list[tuple[str, str, str]], *, generated_at: str, note: str = ""
+) -> str:
     """把界面日志渲染成可导出的纯文本。
 
     records 为 (时间戳, 级别, 消息) 三元组列表；头部固定带版本与系统信息 ——
     用户把这份文件附到 Issue 里，维护者不必再回头问「你用的哪个版本」。
+    note 是尾部的补充说明（例如「日志可能含本机路径，分享前请确认」）。
     """
     lines = ["图片转换器 · 转换日志", "=" * 44]
     lines.extend(environment_lines())
@@ -56,6 +59,8 @@ def build_log_text(records: list[tuple[str, str, str]], *, generated_at: str) ->
         for stamp, level, message in records:
             lines.append(f"{stamp} [{level.upper()}] {message}")
     lines.append("")
+    if note:
+        lines.append(note)
     return "\n".join(lines)
 
 

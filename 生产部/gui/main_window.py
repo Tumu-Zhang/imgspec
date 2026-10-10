@@ -33,6 +33,7 @@ from PySide6.QtCore import (
     QItemSelectionModel,
     QObject,
     QSettings,
+    QStandardPaths,
     Qt,
     QThread,
     QTime,
@@ -84,8 +85,10 @@ from gui.maintenance import (
     UpdateChecker,
     app_version,
     build_log_text,
+    environment_lines,
     is_newer,
 )
+from gui.session_log import SessionLog
 from gui.widgets import (
     CheckBoxHeader,
     EdgeFade,
@@ -200,11 +203,16 @@ class MainWindow(QMainWindow):
         # 更新检查线程（一次一个；启动时自动检查可在顶栏菜单里关掉）
         self._update_thread: UpdateChecker | None = None
         self._auto_check: bool = True
+        # 会话日志落盘：退出即丢的界面日志在这里留一份本地副本，
+        # 上次没正常退出的话，下次启动会归档成 crash-*.log 并提示导出
+        self._session_log = SessionLog(self._session_log_dir())
+        self._session_log.start(self._session_header())
 
         self._load_language()
         self._build_ui()
         self._load_settings()
         self._refresh_preview()
+        self._notify_previous_crash()
 
     # ==================================================================
     # 界面搭建
@@ -2098,16 +2106,31 @@ class MainWindow(QMainWindow):
     def export_log(self) -> None:
         """把本次会话的转换日志导出成 txt（头部含版本与系统信息）。"""
         stamp = QDateTime.currentDateTime().toString("yyyyMMdd_HHmmss")
-        default_path = Path.home() / f"imgspec_log_{stamp}.txt"
-        path, _ = QFileDialog.getSaveFileName(
-            self, i18n.t("export_log_title"), str(default_path), "*.txt"
-        )
-        if not path:
-            return
         text = build_log_text(
             list(self._log_records),
             generated_at=QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss"),
+            note=i18n.t("log_privacy_note"),
         )
+        self._save_log_text(
+            text, i18n.t("export_log_title"), Path.home() / f"imgspec_log_{stamp}.txt"
+        )
+
+    def export_crash_log(self) -> None:
+        """导出上次异常退出会话的日志（本地归档文件，用户自选保存位置）。"""
+        text = self._session_log.crash_text()
+        if text is None:
+            self._append_log("crash_log_missing", "warn")
+            return
+        stamp = QDateTime.currentDateTime().toString("yyyyMMdd_HHmmss")
+        self._save_log_text(
+            text, i18n.t("crash_export_title"), Path.home() / f"imgspec_crash_{stamp}.txt"
+        )
+
+    def _save_log_text(self, text: str, title: str, default_path: Path) -> None:
+        """导出日志文本的公共落盘流程（本次会话日志与上次崩溃日志共用）。"""
+        path, _ = QFileDialog.getSaveFileName(self, title, str(default_path), "*.txt")
+        if not path:
+            return
         try:
             Path(path).write_text(text, encoding="utf-8")
         except OSError as exc:
@@ -2122,6 +2145,42 @@ class MainWindow(QMainWindow):
             action_text=i18n.t("open_containing_folder"),
             on_action=lambda: self._open_url(folder_url),
             auto_close_ms=6000,
+        )
+
+    # ------------------------------------------------------------------
+    # 会话日志：本地留档 + 上次异常退出的提示与导出
+    # ------------------------------------------------------------------
+    def _session_log_dir(self) -> Path:
+        """会话日志目录（默认 %LOCALAPPDATA%\\imgspec\\...\\logs）。
+
+        单独抽成方法是为了测试能把它指到临时目录 —— 否则跑测试会往
+        用户真实的 AppData 里写日志。
+        """
+        base = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppLocalDataLocation
+        )
+        return Path(base or Path.home() / ".imgspec") / "logs"
+
+    def _session_header(self) -> str:
+        lines = ["图片转换器 会话日志", "=" * 44]
+        lines.extend(environment_lines())
+        lines.append(f"启动：{QDateTime.currentDateTime().toString('yyyy-MM-dd HH:mm:ss')}")
+        lines.append("=" * 44)
+        return "\n".join(lines)
+
+    def _notify_previous_crash(self) -> None:
+        """上次没有正常退出：提示用户可把那次日志导出发给维护者。"""
+        crash = self._session_log.previous_crash
+        if crash is None:
+            return
+        self._append_log("crash_detected_log", "warn", name=crash.name)
+        self.toast.show_message(
+            i18n.t("crash_detected_title"),
+            i18n.t("crash_detected_body"),
+            level="warn",
+            action_text=i18n.t("crash_export_action"),
+            on_action=self.export_crash_log,
+            auto_close_ms=0,
         )
 
     def open_feedback(self) -> None:
@@ -2210,11 +2269,12 @@ class MainWindow(QMainWindow):
         self._append_log_raw(i18n.t(key, **kwargs), level)
 
     def _append_log_raw(self, message: str, level: str = "info") -> None:
-        """写一条日志：记录进 _log_records（供主题切换后重染）再上屏。"""
+        """写一条日志：记录进 _log_records（供主题切换后重染）再上屏，同时落盘。"""
         stamp = QTime.currentTime().toString("[HH:mm]")
         self._log_records.append((stamp, level, message))
         if len(self._log_records) > 2000:  # 封顶，长跑不胀内存
             self._log_records = self._log_records[-2000:]
+        self._session_log.append_record(stamp, level, message)
         self._append_log_line(stamp, level, message)
 
     def _append_log_line(self, stamp: str, level: str, message: str) -> None:
@@ -2410,6 +2470,8 @@ class MainWindow(QMainWindow):
         if self._worker is not None:
             self._worker.cancel()
         self._save_settings()
+        # 写「正常退出」标记：下次启动据此判断上次是干净退出还是崩溃
+        self._session_log.finish()
 
         thread, worker = self._thread, self._worker
         if thread is not None and thread.isRunning():

@@ -34,6 +34,16 @@ class TestLogText:
         text = maintenance.build_log_text([("[09:00]", "error", "boom")], generated_at="x")
         assert "[ERROR] boom" in text
 
+    def test_note_appended_at_tail(self):
+        text = maintenance.build_log_text(
+            [], generated_at="x", note="【提示】日志可能包含本机文件路径"
+        )
+        assert "日志可能包含本机文件路径" in text
+
+    def test_no_note_leaves_no_trailing_text(self):
+        text = maintenance.build_log_text([], generated_at="x")
+        assert "【提示】" not in text
+
 
 class TestVersionComparison:
     @pytest.mark.parametrize(

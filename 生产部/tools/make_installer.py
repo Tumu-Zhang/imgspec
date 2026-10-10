@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_NAME = "图片转换器"
 
 # 版本号。与 imgspec.__version__ 保持一致（发布清单里有同步这一项）。
-DEFAULT_VERSION = "1.1.0"
+DEFAULT_VERSION = "1.2.0"
 
 # Inno Setup 脚本与编译器的输出目录
 ISS_FILE = ROOT / "installer" / f"{APP_NAME}.iss"
