@@ -14,6 +14,7 @@ import json
 import platform
 import sys
 import urllib.request
+from urllib.parse import quote
 
 from PySide6.QtCore import QThread, Signal
 
@@ -24,6 +25,14 @@ RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
 LATEST_RELEASE_API = f"https://api.github.com/repos/{REPO}/releases/latest"
 ISSUES_PAGE = f"https://github.com/{REPO}/issues/new/choose"
 TIMEOUT_SECONDS = 5.0
+
+# 邮件反馈的接收邮箱（项目专属邮箱，公开在应用里；不要放私人主邮箱）。
+FEEDBACK_EMAIL = "imgspec@163.com"
+
+# mailto 链接有长度上限（Windows 实用上限约 2K 字符），按「URL 编码后」的
+# 长度做预算：中文经百分号编码会膨胀 9 倍，所以这里管的是编码后总长。
+MAILTO_URL_BUDGET = 1500
+_ERROR_LINE_MAX = 160  # 单条问题记录截断长度（路径类消息可能很长）
 
 
 def app_version() -> str:
@@ -62,6 +71,74 @@ def build_log_text(
     if note:
         lines.append(note)
     return "\n".join(lines)
+
+
+def build_feedback_body(records: list[tuple[str, str, str]]) -> str:
+    """邮件反馈正文：环境信息 + 最近的问题记录（⚠/✗ 级别）。
+
+    正文走 mailto 预填，预算按 URL 编码后长度计（见 MAILTO_URL_BUDGET，
+    中文百分号编码会膨胀 9 倍）：优先保留最新的问题，放不下的从最旧的
+    开始省略；连最新一条都放不下时硬截断它 —— 最新问题必须在场。
+    完整日志不进正文（太长），引导用户用「导出日志」导出后作附件。
+    """
+    header = ["图片转换器 错误反馈", *environment_lines(), "", "最近的问题："]
+    footer = [
+        "",
+        "请补充：做了什么操作？预期与实际结果是什么？",
+        "（完整日志：应用内「导出日志」导出后，作为附件添加到本邮件）",
+    ]
+    errors = [
+        f"{stamp} [{level.upper()}] {_shorten(message)}"
+        for stamp, level, message in records
+        if level in ("warn", "error")
+    ][-8:]
+    if not errors:
+        errors = ["（本次会话没有错误记录）"]
+
+    for keep_n in range(len(errors), 0, -1):
+        dropped = len(errors) - keep_n
+        marker = [f"（较早的 {dropped} 条已省略）"] if dropped else []
+        body = "\n".join(header + marker + errors[-keep_n:] + footer)
+        if _encoded_len(body) <= MAILTO_URL_BUDGET:
+            return body
+
+    # 连最新一条都放不下：截到预算内（保语义：最新问题不能缺席）
+    dropped = len(errors) - 1
+    marker = [f"（较早的 {dropped} 条已省略）"] if dropped else []
+    room = MAILTO_URL_BUDGET - _encoded_len("\n".join(header + marker + footer)) - 12
+    return "\n".join(header + marker + [_fit(errors[-1], max(room, 30))] + footer)
+
+
+def _shorten(text: str, limit: int = _ERROR_LINE_MAX) -> str:
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _encoded_len(text: str) -> int:
+    return len(quote(text, safe=""))
+
+
+def _fit(text: str, budget: int) -> str:
+    """把文本截到「URL 编码后长度」不超过 budget 的最长前缀（二分）。"""
+    if _encoded_len(text) <= budget:
+        return text
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if _encoded_len(text[:mid]) <= budget:
+            lo = mid
+        else:
+            hi = mid - 1
+    return text[:lo] + "…"
+
+
+def build_feedback_mailto(records: list[tuple[str, str, str]]) -> str:
+    """组装 mailto 链接：主题带版本便于一眼分诊，正文预填错误摘要。"""
+    subject = f"[图片转换器 Bug 反馈] v{app_version()}"
+    return (
+        f"mailto:{FEEDBACK_EMAIL}"
+        f"?subject={quote(subject, safe='')}"
+        f"&body={quote(build_feedback_body(records), safe='')}"
+    )
 
 
 def parse_version(text: str) -> tuple[int, ...] | None:
@@ -136,12 +213,16 @@ class UpdateChecker(QThread):
 
 
 __all__ = [
+    "FEEDBACK_EMAIL",
     "ISSUES_PAGE",
     "LATEST_RELEASE_API",
+    "MAILTO_URL_BUDGET",
     "RELEASES_PAGE",
     "TIMEOUT_SECONDS",
     "UpdateChecker",
     "app_version",
+    "build_feedback_body",
+    "build_feedback_mailto",
     "build_log_text",
     "environment_lines",
     "fetch_latest_release",

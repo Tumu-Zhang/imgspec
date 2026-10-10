@@ -123,3 +123,69 @@ class TestFetchLatestRelease:
             maintenance.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(b"not json")
         )
         assert maintenance.fetch_latest_release() is None
+
+
+class TestFeedbackEmail:
+    """邮件反馈：mailto 组装、错误摘要、URL 长度预算。"""
+
+    def test_mailto_targets_project_inbox_with_subject(self):
+        from urllib.parse import parse_qs, unquote, urlparse
+
+        url = maintenance.build_feedback_mailto([("[09:00]", "error", "boom")])
+        assert url.startswith(f"mailto:{maintenance.FEEDBACK_EMAIL}?")
+        query = parse_qs(urlparse(url).query)
+        assert query["subject"][0] == f"[图片转换器 Bug 反馈] v{maintenance.app_version()}"
+        # 中文经百分号编码后必须可无损还原
+        assert unquote(query["body"][0]).startswith("图片转换器 错误反馈")
+
+    def test_body_contains_environment_and_errors(self):
+        from urllib.parse import parse_qs, urlparse
+
+        records = [
+            ("[09:00]", "info", "普通信息不应进正文"),
+            ("[09:01]", "warn", "源文件无 DPI 元数据"),
+            ("[09:02]", "error", "转换失败"),
+        ]
+        query = parse_qs(urlparse(maintenance.build_feedback_mailto(records)).query)
+        body = query["body"][0]
+        assert "版本：" in body and "系统：" in body
+        assert "[WARN] 源文件无 DPI 元数据" in body
+        assert "[ERROR] 转换失败" in body
+        assert "普通信息" not in body  # info 级别过滤掉
+        assert "导出日志" in body  # 引导附完整日志
+
+    def test_body_without_errors_has_placeholder(self):
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(maintenance.build_feedback_mailto([])).query)
+        assert "没有错误记录" in query["body"][0]
+
+    def test_long_message_truncated(self):
+        from urllib.parse import parse_qs, urlparse
+
+        url = maintenance.build_feedback_mailto([("[09:00]", "error", "长" * 500)])
+        body = parse_qs(urlparse(url).query)["body"][0]
+        assert "长" * 160 not in body  # 超过 160 字被截断
+        assert body.count("长") <= 160
+
+    def test_over_budget_drops_oldest_keeps_newest(self):
+        from urllib.parse import parse_qs, quote, urlparse
+
+        records = [
+            (f"[09:{i:02d}]", "error", f"错误{i}：" + "路径" * 70) for i in range(8)
+        ]
+        url = maintenance.build_feedback_mailto(records)
+        query = parse_qs(urlparse(url).query)
+        body = query["body"][0]
+        assert len(quote(body, safe="")) <= maintenance.MAILTO_URL_BUDGET
+        assert "[ERROR] 错误7" in body  # 最新一条永远保留
+        assert "较早的" in body  # 丢弃提示
+        assert len(url) < 2083  # Windows mailto 实用上限
+
+    def test_all_in_budget_keeps_all_without_marker(self):
+        from urllib.parse import parse_qs, urlparse
+
+        records = [("[09:00]", "error", "boom")]
+        query = parse_qs(urlparse(maintenance.build_feedback_mailto(records)).query)
+        assert "较早的" not in query["body"][0]
+        assert "[ERROR] boom" in query["body"][0]

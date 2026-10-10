@@ -127,12 +127,30 @@ _STRINGS: dict[str, dict[str, str]] = {
     "open_containing_folder": {"zh": "打开所在文件夹", "en": "Open Folder"},
     "btn_feedback": {"zh": "反馈", "en": "Feedback"},
     "feedback_tooltip": {
-        "zh": "到 GitHub 提交问题或建议（模板会引导你填写，可附上导出的日志）",
-        "en": "Report issues or ideas on GitHub (attach the exported log if useful)",
+        "zh": "通过 GitHub Issue 或邮件反馈问题（菜单里选择渠道）",
+        "en": "Report issues via GitHub Issue or email (pick from the menu)",
     },
+    "feedback_github_item": {"zh": "GitHub Issue（推荐）", "en": "GitHub Issue (recommended)"},
+    "feedback_email_item": {"zh": "邮件反馈", "en": "Email feedback"},
     "feedback_opened": {
         "zh": "已打开反馈页；建议先用「导出日志」导出日志，再附到 Issue 里",
         "en": "Feedback page opened; export the log first if you want to attach it",
+    },
+    "feedback_email_opened": {
+        "zh": "已唤起邮件客户端：正文已预填错误摘要，请补充复现步骤后发送",
+        "en": "Mail client opened with a pre-filled summary; add repro steps and send",
+    },
+    "feedback_email_fallback": {
+        "zh": "未找到邮件客户端，反馈邮箱已复制到剪贴板",
+        "en": "No mail client found; feedback address copied to clipboard",
+    },
+    "feedback_email_fallback_title": {
+        "zh": "无法唤起邮件客户端",
+        "en": "Cannot open a mail client",
+    },
+    "feedback_email_fallback_body": {
+        "zh": "反馈邮箱已复制到剪贴板：{email}。也可用「导出日志」导出后手动发送。",
+        "en": "Feedback email copied: {email}. You can also export the log and send it manually.",
     },
     "btn_check_update": {"zh": "检查更新", "en": "Check updates"},
     "update_btn_tooltip": {

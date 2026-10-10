@@ -1081,6 +1081,38 @@ class TestMaintenanceFeatures:
         window.open_feedback()
         assert opened and "issues/new/choose" in opened[0]
 
+    def test_feedback_menu_has_two_channels(self, window):
+        from gui import i18n
+
+        assert window.feedback_btn.menu() is window.feedback_menu
+        assert window.feedback_github_action.text() == i18n.t("feedback_github_item")
+        assert window.feedback_email_action.text() == i18n.t("feedback_email_item")
+
+    def test_send_feedback_email_opens_mailto(self, window, monkeypatch):
+        from gui import i18n, maintenance
+        from urllib.parse import parse_qs, urlparse
+
+        opened: list[str] = []
+        monkeypatch.setattr(window, "_open_url", lambda url: opened.append(url) or True)
+        window._append_log_raw("测试错误行", "error")
+        window.send_feedback_email()
+
+        assert opened and opened[0].startswith(f"mailto:{maintenance.FEEDBACK_EMAIL}?")
+        body = parse_qs(urlparse(opened[0]).query)["body"][0]  # parse_qs 已解码
+        assert "测试错误行" in body  # 错误摘要进了正文
+        assert window._log_records[-1][2] == i18n.t("feedback_email_opened")
+
+    def test_send_feedback_email_falls_back_to_clipboard(self, window, monkeypatch):
+        from gui import i18n, maintenance
+
+        monkeypatch.setattr(window, "_open_url", lambda url: False)  # 无邮件客户端
+        window.send_feedback_email()
+
+        assert QApplication.clipboard().text() == maintenance.FEEDBACK_EMAIL
+        assert not window.toast.isHidden()
+        assert window.toast._title.text() == i18n.t("feedback_email_fallback_title")
+        assert maintenance.FEEDBACK_EMAIL in window.toast._body.text()
+
     def test_toast_actions_reuse_open_url(self, window, monkeypatch):
         """导出日志/发现新版时，Toast 上的动作也走 _open_url（不真开浏览器）。"""
         from PySide6.QtWidgets import QFileDialog

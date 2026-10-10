@@ -81,9 +81,11 @@ from PySide6.QtWidgets import (
 
 from gui import i18n, theme
 from gui.maintenance import (
+    FEEDBACK_EMAIL,
     ISSUES_PAGE,
     UpdateChecker,
     app_version,
+    build_feedback_mailto,
     build_log_text,
     environment_lines,
     is_newer,
@@ -282,10 +284,24 @@ class MainWindow(QMainWindow):
         self.export_log_btn.setToolTip(i18n.t("export_log_tooltip"))
         self.export_log_btn.clicked.connect(self.export_log)
 
-        self.feedback_btn = QPushButton(i18n.t("btn_feedback"))
+        # 反馈按钮：菜单选渠道（GitHub Issue 为主渠道，邮件给没有 GitHub
+        # 账号的用户兜底）。InstantPopup：点一下就出菜单，不用找小箭头。
+        self.feedback_btn = QToolButton()
         self.feedback_btn.setObjectName("ghostBtn")
+        self.feedback_btn.setText(i18n.t("btn_feedback"))
         self.feedback_btn.setToolTip(i18n.t("feedback_tooltip"))
-        self.feedback_btn.clicked.connect(self.open_feedback)
+        self.feedback_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.feedback_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.feedback_menu = QMenu(self.feedback_btn)
+        self.feedback_github_action = self.feedback_menu.addAction(
+            i18n.t("feedback_github_item")
+        )
+        self.feedback_github_action.triggered.connect(self.open_feedback)
+        self.feedback_email_action = self.feedback_menu.addAction(
+            i18n.t("feedback_email_item")
+        )
+        self.feedback_email_action.triggered.connect(self.send_feedback_email)
+        self.feedback_btn.setMenu(self.feedback_menu)
 
         # 主按钮 = 立即检查；右侧箭头弹出菜单（含「启动时自动检查更新」开关）
         self.update_btn = QToolButton()
@@ -934,6 +950,8 @@ class MainWindow(QMainWindow):
         self.export_log_btn.setToolTip(i18n.t("export_log_tooltip"))
         self.feedback_btn.setText(i18n.t("btn_feedback"))
         self.feedback_btn.setToolTip(i18n.t("feedback_tooltip"))
+        self.feedback_github_action.setText(i18n.t("feedback_github_item"))
+        self.feedback_email_action.setText(i18n.t("feedback_email_item"))
         self.update_btn.setText(i18n.t("btn_check_update"))
         self.update_btn.setToolTip(i18n.t("update_btn_tooltip"))
         self.update_now_action.setText(i18n.t("btn_check_update"))
@@ -2094,14 +2112,14 @@ class MainWindow(QMainWindow):
     # ==================================================================
     # 维护功能：日志导出 / 问题反馈 / 检查更新
     # ==================================================================
-    def _open_url(self, url: str) -> None:
-        """用系统默认程序打开链接。
+    def _open_url(self, url: str) -> bool:
+        """用系统默认程序打开链接，返回是否成功唤起了处理程序。
 
         单独抽成一个方法（而不是到处直接调 QDesktopServices）：测试里可以
         整体替换掉它 —— QDesktopServices.openUrl 是 C++ 静态方法，patch 不掉，
-        测试一旦漏掉就会真的拉起浏览器。
+        测试一旦漏掉就会真的拉起浏览器。返回值供 mailto 兜底判断。
         """
-        QDesktopServices.openUrl(QUrl(url))
+        return QDesktopServices.openUrl(QUrl(url))
 
     def export_log(self) -> None:
         """把本次会话的转换日志导出成 txt（头部含版本与系统信息）。"""
@@ -2187,6 +2205,26 @@ class MainWindow(QMainWindow):
         """打开 GitHub 反馈页（Issue 模板会引导填写版本与复现步骤）。"""
         self._open_url(ISSUES_PAGE)
         self._append_log("feedback_opened")
+
+    def send_feedback_email(self) -> None:
+        """唤起邮件客户端预填错误反馈（正文 = 环境信息 + 错误摘要）。
+
+        完整日志不进正文——mailto 有长度上限，引导用户「导出日志」后作附件；
+        用户自己点发送 = 用户知情并选择发什么，比自动上报干净。
+        没有配置邮件客户端时（openUrl 失败）：邮箱进剪贴板兜底。
+        """
+        mailto = build_feedback_mailto(list(self._log_records))
+        if self._open_url(mailto):
+            self._append_log("feedback_email_opened")
+            return
+        QApplication.clipboard().setText(FEEDBACK_EMAIL)
+        self._append_log("feedback_email_fallback", "warn")
+        self.toast.show_message(
+            i18n.t("feedback_email_fallback_title"),
+            i18n.t("feedback_email_fallback_body", email=FEEDBACK_EMAIL),
+            level="warn",
+            auto_close_ms=0,
+        )
 
     def check_updates(self, manual: bool = False) -> None:
         """检查更新。
