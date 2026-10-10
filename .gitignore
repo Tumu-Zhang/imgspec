@@ -15,18 +15,3 @@ dist/
 /图片转换器.exe
 # PyInstaller 每次打包都会重新生成，真正的打包配置在 tools/build.py 里
 *.spec
-
-# 本地组织目录（不上传 GitHub：仓库只保留软件核心）
-/宣传部/
-/组织部/
-/反馈部/
-
-# 编辑器 / 工具自身的工作目录
-.reasonix/
-.workbuddy/
-.claude/
-.vscode/
-.idea/
-
-# 内部评估文档，不随仓库发布
-Web化可行性评估.md
