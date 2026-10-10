@@ -54,7 +54,9 @@
 - [ ] `生产部\图片转换器.exe --selftest` 与 `--smoke` 全过
 - [ ] 版本号：Release tag `vX.Y.Z`；出安装包则同步 `DEFAULT_VERSION`
 - [ ] Release notes：**新增 / 修复 / 已知问题** 三段
-- [ ] 资产：`imgspec-vX.Y.Z-win64.zip`（图片转换器.exe + `_internal\` + README.md）
+- [ ] 打发布包：`cd 生产部 && python tools\make_release_zip.py`
+      （产出 `生产部\dist\release\imgspec-vX.Y.Z-win64.zip`，内含 exe + _internal + README；
+      版本号取自 `imgspec.__version__`）
 - [ ] 上传后下载一份，解压试跑一遍再标记 latest
 
 ## 五、阶段规划

@@ -11,8 +11,6 @@ converted/
 build/
 dist/
 # 打包后 exe 与运行库会被提到 生产部/（软件所在目录），方便双击
-/_internal/
-/图片转换器.exe
 /生产部/_internal/
 /生产部/图片转换器.exe
 # 随打包复制到 生产部/ 的使用说明副本（仓库正式 README 在根目录）

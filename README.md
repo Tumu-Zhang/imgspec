@@ -378,6 +378,18 @@ python tools\build.py
 > 它们不是本工具的依赖，但 PyInstaller 会顺着可选导入把它们整个拖进来（光是 torch
 > 就有 364 MB，排除后产物体积从 848 MB 降到约 206 MB）。
 
+### 打发布包（GitHub Release 资产）
+
+打包完成后，一条命令生成 Release 用的 zip（内含 exe、运行库与使用说明）：
+
+```bash
+cd 生产部
+python tools\make_release_zip.py
+```
+
+产物在 `生产部\dist\release\imgspec-v<版本>-win64.zip`（版本号取自 `imgspec.__version__`，
+与要打的 git tag 保持一致即可）。
+
 ## 制作安装包
 
 上面的 `tools/build.py` 产出的是**绿色版**：`图片转换器.exe` + `_internal\`，
